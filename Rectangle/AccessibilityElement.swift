@@ -127,7 +127,7 @@ class AccessibilityElement {
     /// The Accessebility API only allows size & position adjustments individually.
     /// To handle moving to different displays, we have to adjust the size then the position, then the size again since macOS will enforce sizes that fit on the current display.
     /// When windows take a long time to adjust size & position, there is some visual stutter with doing each of these actions. The stutter can be slightly reduced by removing the initial size adjustment, which can make unsnap restore appear smoother.
-    func setFrame(_ frame: CGRect, adjustSizeFirst: Bool = true) {
+    func setFrame(_ frame: CGRect, adjustSizeFirst: Bool = true, positionAfterInitialSize: ((CGSize) -> CGPoint?)? = nil) {
         let appElement = applicationElement
         var enhancedUI: Bool? = nil
 
@@ -139,10 +139,15 @@ class AccessibilityElement {
             }
         }
 
+        var positionToApply = frame.origin
         if adjustSizeFirst {
             size = frame.size
+            if let adjustedSize = size,
+               let adjustedPosition = positionAfterInitialSize?(adjustedSize) {
+                positionToApply = adjustedPosition
+            }
         }
-        position = frame.origin
+        position = positionToApply
         size = frame.size
 
         // If "enhanced user interface" was originally enabled for the app, turn it back on

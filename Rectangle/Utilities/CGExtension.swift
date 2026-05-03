@@ -26,6 +26,17 @@ extension CGRect {
     var centerPoint: CGPoint {
         NSMakePoint(NSMidX(self), NSMidY(self))
     }
+
+    func isApproximatelyEqual(to other: CGRect, tolerance: CGFloat = 1.0) -> Bool {
+        if isNull || other.isNull {
+            return isNull == other.isNull
+        }
+
+        return abs(origin.x - other.origin.x) <= tolerance
+            && abs(origin.y - other.origin.y) <= tolerance
+            && abs(size.width - other.size.width) <= tolerance
+            && abs(size.height - other.size.height) <= tolerance
+    }
     
     func numSharedEdges(withRect rect: CGRect) -> Int {
         var sharedEdgeCount = 0

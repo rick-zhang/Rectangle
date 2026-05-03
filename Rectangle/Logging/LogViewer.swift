@@ -13,6 +13,10 @@ class Logger {
     static var logging = false
     
     static private var logWindowController: LogWindowController?
+    static private let diagnosticLogURL = URL(fileURLWithPath: "/private/tmp/rectangle-display-move.log")
+#if DEBUG
+    static var diagnosticsEnabled = false
+#endif
     
     static func showLogging(sender: Any?) {
         if logWindowController == nil {
@@ -27,6 +31,60 @@ class Logger {
         if logging {
             logWindowController?.append(string)
         }
+    }
+
+    static func diagnostic(_ string: String) {
+        if logging {
+            logWindowController?.append(string)
+        }
+#if DEBUG
+        guard diagnosticsEnabled else { return }
+        let line = "\(datestamp()): \(string)\n"
+        let data = Data(line.utf8)
+        if FileManager.default.fileExists(atPath: diagnosticLogURL.path) {
+            if let fileHandle = try? FileHandle(forWritingTo: diagnosticLogURL) {
+                fileHandle.seekToEndOfFile()
+                fileHandle.write(data)
+                fileHandle.closeFile()
+            }
+        } else {
+            FileManager.default.createFile(atPath: diagnosticLogURL.path, contents: data)
+        }
+#endif
+    }
+
+#if DEBUG
+    static var diagnosticLogPath: String {
+        diagnosticLogURL.path
+    }
+
+    static func clearDiagnosticLog() {
+        try? "".write(to: diagnosticLogURL, atomically: true, encoding: .utf8)
+    }
+
+    static func openDiagnosticLog() {
+        if !FileManager.default.fileExists(atPath: diagnosticLogURL.path) {
+            FileManager.default.createFile(atPath: diagnosticLogURL.path, contents: nil)
+        }
+        NSWorkspace.shared.open(diagnosticLogURL)
+    }
+
+    @discardableResult
+    static func toggleDiagnostics() -> Bool {
+        diagnosticsEnabled.toggle()
+        if diagnosticsEnabled {
+            clearDiagnosticLog()
+            diagnostic("Rectangle debug diagnostics started, logPath: \(diagnosticLogPath)")
+        }
+        return diagnosticsEnabled
+    }
+#endif
+
+    static private func datestamp() -> String {
+        if #available(OSX 10.12, *) {
+            return ISO8601DateFormatter.string(from: Date(), timeZone: TimeZone.current, formatOptions: .withInternetDateTime)
+        }
+        return String(NSDate().timeIntervalSince1970)
     }
 }
 

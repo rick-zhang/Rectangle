@@ -27,7 +27,8 @@ class SpecificDisplayCalculation: WindowCalculation {
 
         let rectParams = params.asRectParams(visibleFrame: targetScreen.adjustedVisibleFrame(params.ignoreTodo))
 
-        if Defaults.attemptMatchOnNextPrevDisplay.userEnabled {
+        if DisplayMoveLayoutMatchResolver.shouldMatch(lastAction: params.lastAction,
+                                                      attemptMatchUserDisabled: Defaults.attemptMatchOnNextPrevDisplay.userDisabled) {
             if let lastAction = params.lastAction,
                let calculation = WindowCalculationFactory.calculationsByAction[lastAction.action] {
 

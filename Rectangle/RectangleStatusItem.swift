@@ -39,6 +39,7 @@ class RectangleStatusItem {
     }
     
     private func add() {
+        guard !added else { return }
         added = true
         nsStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         nsStatusItem?.menu = self.statusMenu

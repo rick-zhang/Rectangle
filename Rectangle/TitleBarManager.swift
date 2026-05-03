@@ -77,7 +77,7 @@ class TitleBarManager {
            windowFrame != .null,
            let historyAction = AppDelegate.windowHistory.lastRectangleActions[windowId],
            historyAction.action == action,
-           historyAction.rect == windowFrame {
+           historyAction.rect.isApproximatelyEqual(to: windowFrame) {
             WindowAction.restore.postTitleBar(windowElement: windowElement)
             return
         }

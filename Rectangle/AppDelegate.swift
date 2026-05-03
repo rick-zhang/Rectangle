@@ -139,6 +139,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 item.image = NSImage(systemSymbolName: "gear", accessibilityDescription: nil)
             case #selector(viewLogging):
                 item.image = NSImage(systemSymbolName: "doc.text", accessibilityDescription: nil)
+#if DEBUG
+            case #selector(toggleDiagnosticLog):
+                item.image = NSImage(systemSymbolName: "doc.text.magnifyingglass", accessibilityDescription: nil)
+#endif
             case #selector(checkForUpdates):
                 item.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
             default:
@@ -276,6 +280,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @IBAction func viewLogging(_ sender: Any) {
         Logger.showLogging(sender: sender)
     }
+
+#if DEBUG
+    @objc func toggleDiagnosticLog(_ sender: Any) {
+        let enabled = Logger.toggleDiagnostics()
+        updateDiagnosticLogMenuItem()
+        if enabled {
+            Logger.openDiagnosticLog()
+        }
+    }
+#endif
     
     @IBAction func ignoreFrontMostApp(_ sender: NSMenuItem) {
         if sender.state == .on {
@@ -344,6 +358,9 @@ extension AppDelegate: NSMenuDelegate {
         
         updateWindowActionMenuItems(menu: menu)
         updateTodoModeMenuItems(menu: menu)
+#if DEBUG
+        updateDiagnosticLogMenuItem()
+#endif
 
         viewLoggingMenuItem.keyEquivalentModifierMask = .option
         quitMenuItem.keyEquivalent = "q"
@@ -458,7 +475,35 @@ extension AppDelegate: NSMenuDelegate {
         addTodoModeMenuItems(startingIndex: menuIndex)
         // Track total dynamic items: window actions + separators + todo items (4 items + 1 separator)
         dynamicMenuItemCount = menuIndex + 5
+
+        addDebugDiagnosticMenuItem()
     }
+
+#if DEBUG
+    private func addDebugDiagnosticMenuItem() {
+        mainStatusMenu.items
+            .filter { $0.action == #selector(toggleDiagnosticLog) }
+            .forEach { mainStatusMenu.removeItem($0) }
+
+        guard let updatesIndex = mainStatusMenu.items.firstIndex(where: { $0.action == #selector(checkForUpdates) }) else { return }
+
+        let diagnosticItem = NSMenuItem(title: "", action: #selector(toggleDiagnosticLog), keyEquivalent: "")
+        diagnosticItem.target = self
+        if #available(macOS 11, *) {
+            diagnosticItem.image = NSImage(systemSymbolName: "doc.text.magnifyingglass", accessibilityDescription: nil)
+        }
+        mainStatusMenu.insertItem(diagnosticItem, at: updatesIndex)
+        updateDiagnosticLogMenuItem()
+    }
+
+    private func updateDiagnosticLogMenuItem() {
+        guard let diagnosticItem = mainStatusMenu.items.first(where: { $0.action == #selector(toggleDiagnosticLog) }) else { return }
+        diagnosticItem.title = Logger.diagnosticsEnabled ? "关闭跨屏诊断日志" : "开启跨屏诊断日志"
+        diagnosticItem.state = Logger.diagnosticsEnabled ? .on : .off
+    }
+#else
+    private func addDebugDiagnosticMenuItem() {}
+#endif
 
     @objc func rebuildMenu() {
         // Remove all dynamically added items
