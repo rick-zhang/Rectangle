@@ -1,0 +1,15 @@
+schema_version: 1
+upstream:
+  url: git@github.com:rxhanson/Rectangle.git
+  remote: upstream
+  branch: main
+downstream:
+  url: git@github.com:rick-zhang/Rectangle.git
+  remote: origin
+  branch: main
+sync:
+  strategy: merge
+  delivery: local
+  branch_prefix: sync/upstream
+  recovery_prefix: backup/pre-sync
+customizations: customizations.md
