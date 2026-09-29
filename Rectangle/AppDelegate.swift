@@ -1,17 +1,10 @@
-//
-//  AppDelegate.swift
-//  Rectangle
-//
-//  Created by Ryan Hanson on 6/11/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// AppDelegate.swift
 
 import Cocoa
 import Sparkle
-import ServiceManagement
 import os.log
 
-@NSApplicationMain
+@main
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     static let launcherAppId = "com.knollsoft.RectangleLauncher"
@@ -31,9 +24,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var applicationToggle: ApplicationToggle!
     private var windowCalculationFactory: WindowCalculationFactory!
     private var snappingManager: SnappingManager!
+    private var stackBadgeManager: StackBadgeManager!
     private var titleBarManager: TitleBarManager!
+    private var greenButtonManager: GreenButtonManager!
     
-    private var prefsWindowController: NSWindowController?
+    private var settingsWindowController: NSWindowController?
     
     private var prevActiveAppObservation: NSKeyValueObservation?
     private var prevActiveApp: NSRunningApplication?
@@ -61,7 +56,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         checkLaunchOnLogin()
         
         let alreadyTrusted = accessibilityAuthorization.checkAccessibility {
-            self.showWelcomeWindow()
+            WelcomeView.show()
             self.checkForConflictingApps()
             self.openPreferences(self)
             self.statusItem.statusMenu = self.mainStatusMenu
@@ -114,15 +109,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if intLastVersion < 64 {
                 SnapAreaModel.instance.migrate()
             }
-            if intLastVersion < 72 {
-                if #available(macOS 13, *) {
-                    SMLoginItemSetEnabled(AppDelegate.launcherAppId as CFString, false)
-                }
-            }
         } else {
             Defaults.installVersion.value = currentVersion
             Defaults.allowAnyShortcut.enabled = true
         }
+        MASShortcutMigration.syncRenamedSideShortcutAliases()
         
         Defaults.lastVersion.value = currentVersion
     }
@@ -161,7 +152,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.shortcutManager = ShortcutManager(windowManager: windowManager)
         self.applicationToggle = ApplicationToggle(shortcutManager: shortcutManager)
         self.snappingManager = SnappingManager()
+        self.stackBadgeManager = StackBadgeManager()
         self.titleBarManager = TitleBarManager()
+        self.greenButtonManager = GreenButtonManager()
         self.initializeTodo()
         checkForProblematicApps()
         MacTilingDefaults.checkForBuiltInTiling(skipIfAlreadyNotified: true)
@@ -214,15 +207,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return nil
         }
         
+        let runningApps = NSWorkspace.shared.runningApplications
+
         for name in problemJavaAppNames {
-            if let path = NSWorkspace.shared.fullPath(forApplication: name) {
-                if let bundle = Bundle(path: path),
-                   let bundleId = bundle.bundleIdentifier {
-                    
-                    if !applicationToggle.isDisabled(bundleId: bundleId),
-                       bundleId.starts(with: "com.install4j") {
-                        problemBundles.append(bundle)
-                    }
+            if let runningApp = runningApps.first(where: { $0.localizedName?.localizedCaseInsensitiveCompare(name) == .orderedSame }),
+               let bundleId = runningApp.bundleIdentifier,
+               let appURL = runningApp.bundleURL,
+               let bundle = Bundle(url: appURL) {
+                
+                if !applicationToggle.isDisabled(bundleId: bundleId),
+                   bundleId.starts(with: "com.install4j") {
+                    problemBundles.append(bundle)
                 }
             }
         }
@@ -265,11 +260,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @IBAction func openPreferences(_ sender: Any) {
-        if prefsWindowController == nil {
-            prefsWindowController = NSStoryboard(name: "Main", bundle: nil).instantiateController(withIdentifier: "PrefsWindowController") as? NSWindowController
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
         }
         NSApp.activate(ignoringOtherApps: true)
-        prefsWindowController?.showWindow(self)
+        settingsWindowController?.showWindow(self)
     }
     
     @IBAction func showAbout(_ sender: Any) {
@@ -308,31 +303,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func checkLaunchOnLogin() {
-        if #available(macOS 13.0, *) {
-            if Defaults.launchOnLogin.enabled, !LaunchOnLogin.isEnabled {
-                LaunchOnLogin.isEnabled = true
-            }
-        } else {
-            let running = NSWorkspace.shared.runningApplications
-            let isRunning = !running.filter({$0.bundleIdentifier == AppDelegate.launcherAppId}).isEmpty
-            if isRunning {
-                let killNotification = Notification.Name("killLauncher")
-                DistributedNotificationCenter.default().post(name: killNotification, object: Bundle.main.bundleIdentifier!)
-            }
-            if !Defaults.SUHasLaunchedBefore {
-                Defaults.launchOnLogin.enabled = true
-            }
-            
-            // Even if we are already set up to launch on login, setting it again since macOS can be buggy with this type of launch on login.
-            if Defaults.launchOnLogin.enabled {
-                let smLoginSuccess = SMLoginItemSetEnabled(AppDelegate.launcherAppId as CFString, true)
-                if !smLoginSuccess {
-                    if #available(OSX 10.12, *) {
-                        os_log("Unable to enable launch at login. Attempting one more time.", type: .info)
-                    }
-                    SMLoginItemSetEnabled(AppDelegate.launcherAppId as CFString, true)
-                }
-            }
+        if Defaults.launchOnLogin.enabled, !LaunchOnLogin.isEnabled {
+            LaunchOnLogin.isEnabled = true
         }
     }
     
@@ -348,7 +320,7 @@ extension AppDelegate: NSMenuDelegate {
         }
         
         if let frontAppName = ApplicationToggle.frontAppName {
-            let ignoreString = NSLocalizedString("D99-0O-MB6.title", tableName: "Main", value: "Ignore frontmost.app", comment: "")
+            let ignoreString = String(localized: "Ignore frontmost.app")
             ignoreMenuItem.title = ignoreString.replacingOccurrences(of: "frontmost.app", with: frontAppName)
             ignoreMenuItem.state = ApplicationToggle.shortcutsDisabled ? .on : .off
             ignoreMenuItem.isHidden = false
@@ -393,9 +365,8 @@ extension AppDelegate: NSMenuDelegate {
             if frontmostWindow == nil {
                 menuItem.isEnabled = false
             }
-            if screenCount == 1
-                && (windowAction == .nextDisplay || windowAction == .previousDisplay) {
-                menuItem.isEnabled = false
+            if windowAction == .nextDisplay || windowAction == .previousDisplay {
+                menuItem.isHidden = screenCount == 1 || Defaults.combinedDisplayMode.userEnabled
             }
         }
     }
@@ -415,18 +386,20 @@ extension AppDelegate: NSMenuDelegate {
         windowAction.postMenu()
     }
     
-    func addWindowActionMenuItems() {
-        let additionalSizeCategories: Set<WindowActionCategory> = [.eighths, .ninths, .twelfths, .sixteenths]
+    func addWindowActionMenuItems(showAdditional: Bool = Defaults.showAdditionalSizesInMenu.userEnabled,
+                                  showAllActions: Bool = Defaults.showAllActionsInMenu.userEnabled) {
+        let additionalSizeCategories: Set<WindowActionCategory> = [.eighths, .ninths, .twelfths, .sixteenths, .tiling]
         let submenuOnlyWhenAdditional: Set<WindowActionCategory> = [.thirds, .size]
-        let showAdditional = Defaults.showAdditionalSizesInMenu.userEnabled
         var menuIndex = 0
         var categoryMenus: [CategoryMenu] = []
         for action in WindowAction.active {
-            guard let displayName = action.displayName else { continue }
+            guard !action.excludedFromMenu, let displayName = action.displayName else { continue }
             let newMenuItem = NSMenuItem(title: displayName, action: #selector(executeMenuWindowAction), keyEquivalent: "")
             newMenuItem.representedObject = action
-
-            if !Defaults.showAllActionsInMenu.userEnabled, let category = action.category {
+            if #available(macOS 27.0, *) {
+                newMenuItem.preferredImageVisibility = .visible
+            }
+            if !showAllActions, let category = action.category {
                 // When additional sizes are off, keep Thirds and Size as flat items
                 if submenuOnlyWhenAdditional.contains(category) && !showAdditional {
                     // Fall through to flat item handling below
@@ -460,7 +433,7 @@ extension AppDelegate: NSMenuDelegate {
                 categoryMenu.menu.delegate = self
                 let menuMenuItem = NSMenuItem(title: categoryMenu.category.displayName, action: nil, keyEquivalent: "")
                 if additionalSizeCategories.contains(categoryMenu.category) {
-                    menuMenuItem.isHidden = !Defaults.showAdditionalSizesInMenu.userEnabled
+                    menuMenuItem.isHidden = !showAdditional
                     additionalSizeMenuItems.append(menuMenuItem)
                 }
                 mainStatusMenu.insertItem(menuMenuItem, at: menuIndex)
@@ -558,26 +531,26 @@ extension AppDelegate {
     private func addTodoModeMenuItems(startingIndex: Int) {
         var menuIndex = startingIndex
 
-        let todoModeItemTitle = NSLocalizedString("Enable Todo Mode", tableName: "Main", value: "", comment: "")
+        let todoModeItemTitle = String(localized: "Enable Todo Mode")
         let todoModeMenuItem = NSMenuItem(title: todoModeItemTitle, action: #selector(toggleTodoMode), keyEquivalent: "")
         todoModeMenuItem.tag = TodoItem.mode.tag
         todoModeMenuItem.target = self
         mainStatusMenu.insertItem(todoModeMenuItem, at: menuIndex)
         menuIndex += 1
 
-        let todoAppItemTitle = NSLocalizedString("Use frontmost.app as Todo App", tableName: "Main", value: "", comment: "")
+        let todoAppItemTitle = String(localized: "Use frontmost.app as Todo App")
         let todoAppMenuItem = NSMenuItem(title: todoAppItemTitle, action: #selector(setTodoApp), keyEquivalent: "")
         todoAppMenuItem.tag = TodoItem.app.tag
         mainStatusMenu.insertItem(todoAppMenuItem, at: menuIndex)
         menuIndex += 1
 
-        let todoWindowItemTitle = NSLocalizedString("Use as Todo Window", tableName: "Main", value: "", comment: "")
+        let todoWindowItemTitle = String(localized: "Use as Todo Window")
         let todoWindowMenuItem = NSMenuItem(title: todoWindowItemTitle, action: #selector(setTodoWindow), keyEquivalent: "")
         todoWindowMenuItem.tag = TodoItem.window.tag
         mainStatusMenu.insertItem(todoWindowMenuItem, at: menuIndex)
         menuIndex += 1
         
-        let todoReflowItemTitle = NSLocalizedString("Reflow Todo", tableName: "Main", value: "", comment: "")
+        let todoReflowItemTitle = String(localized: "Reflow Todo")
         let todoReflowItem = NSMenuItem(title: todoReflowItemTitle, action: #selector(todoReflow), keyEquivalent: "")
         todoReflowItem.tag = TodoItem.reflow.tag
         mainStatusMenu.insertItem(todoReflowItem, at: menuIndex)
@@ -628,7 +601,7 @@ extension AppDelegate {
         }
 
         if let frontAppName = ApplicationToggle.frontAppName {
-            let appString = NSLocalizedString("Use frontmost.app as Todo App", tableName: "Main", value: "", comment: "")
+            let appString = String(localized: "Use frontmost.app as Todo App")
             todoAppMenuItem.title = appString.replacingOccurrences(
                 of: "frontmost.app", with: frontAppName)
             todoAppMenuItem.isEnabled = !applicationToggle.todoAppIsActive()
@@ -689,6 +662,26 @@ extension AppDelegate {
                 return isValid
             }
             
+            func confirmExecuteTask(action: String, bundleId: String) -> Bool {
+                // Defense-in-depth: any web page or another app can trigger the
+                // `rectangle://execute-task=ignore-app` URL with an arbitrary
+                // bundle-id. Without confirmation this silently mutates
+                // Rectangle's `disabledApps` defaults. Skip the prompt only
+                // when Rectangle itself is frontmost (i.e. the user almost
+                // certainly clicked this from inside Rectangle's own UI).
+                if NSWorkspace.shared.frontmostApplication == NSRunningApplication.current {
+                    return true
+                }
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = "Allow Rectangle URL action?".localized
+                alert.informativeText = String(format: "An external source asked Rectangle to perform \"%@\" on app bundle id \"%@\". Allow?".localized, action, bundleId)
+                alert.addButton(withTitle: "Allow".localized)
+                alert.addButton(withTitle: "Cancel".localized)
+                NSApp.activate(ignoringOtherApps: true)
+                return alert.runModal() == .alertFirstButtonReturn
+            }
+            
             for url in urls {
                 guard
                     let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
@@ -700,15 +693,22 @@ extension AppDelegate {
                 let name = (components.queryItems?.first { $0.name == "name" })?.value
                 switch (components.host, name) {
                 case ("execute-action", _):
-                    let action = (WindowAction.active.first { getUrlName($0.name) == name })
+                    let action = (WindowAction.active.first { windowAction in
+                        if let aliasName = windowAction.aliasName, getUrlName(aliasName) == name {
+                            return true
+                        }
+                        return getUrlName(windowAction.name) == name
+                    })
                     action?.postUrl()
                 case ("execute-task", "ignore-app"):
                     let bundleId = extractBundleIdParameter(fromComponents: components)
-                    guard isValidParameter(bundleId: bundleId) else { continue }
+                    guard isValidParameter(bundleId: bundleId), let bundleId else { continue }
+                    guard confirmExecuteTask(action: "ignore-app", bundleId: bundleId) else { continue }
                     self.applicationToggle.disableApp(appBundleId: bundleId)
                 case ("execute-task", "unignore-app"):
                     let bundleId = extractBundleIdParameter(fromComponents: components)
-                    guard isValidParameter(bundleId: bundleId) else { continue }
+                    guard isValidParameter(bundleId: bundleId), let bundleId else { continue }
+                    guard confirmExecuteTask(action: "unignore-app", bundleId: bundleId) else { continue }
                     self.applicationToggle.enableApp(appBundleId: bundleId)
                 default:
                     continue

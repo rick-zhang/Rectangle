@@ -1,14 +1,12 @@
-//
-//  MaximizeCalculation.swift
-//  Rectangle, Ported from Spectacle
-//
-//  Created by Ryan Hanson on 6/14/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// MaximizeCalculation.swift
 
 import Foundation
 
 class MaximizeCalculation: WindowCalculation {
+
+    override func calculate(_ params: WindowCalculationParameters) -> WindowCalculationResult? {
+        RepeatedMaximizeRestore.calculate(params) ?? super.calculate(params)
+    }
 
     override func calculateRect(_ params: RectCalculationParameters) -> RectResult {
         let visibleFrameOfScreen = params.visibleFrameOfScreen

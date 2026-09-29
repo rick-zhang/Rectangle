@@ -8,10 +8,12 @@ The preferences window is purposefully slim, but there's a lot that can be modif
 - [Adjust Behavior on Repeated Commands](#adjust-behavior-on-repeated-commands)
 - [Cycle thirds on repeated Center Half commands](#cycle-thirds-on-repeated-center-half-commands)
 - [Resize on Directional Move](#resize-on-directional-move)
+- [Make the half actions tile like Windows or KDE](#make-the-half-actions-tile-like-windows-or-kde)
 - [Adjust macOS Ventura Stage Manager size](#adjust-macos-ventura-stage-manager-size)
 - [Enable Todo Mode](#enable-todo-mode)
 - [Only allow drag-to-snap when modifier keys are pressed](#only-allow-drag-to-snap-when-modifier-keys-are-pressed)
 - [Almost Maximize](#almost-maximize)
+- [Repeated Maximize restores the previous size and position](#repeated-maximize-restores-the-previous-size-and-position)
 - [Add an extra centering command with custom size](#add-an-extra-centering-command-with-custom-size)
 - [Add extra "ninths" sizing commands](#add-extra-ninths-sizing-commands)
 - [Add extra "eighths" sizing commands](#add-extra-eighths-sizing-commands)
@@ -25,6 +27,7 @@ The preferences window is purposefully slim, but there's a lot that can be modif
 - [Make Smaller/Make Larger "curtain resize" with gaps](#make-smallermake-larger-curtain-resize-with-gaps)
 - [Make Smaller/Make Larger width only](#make-smallermake-larger-width-only)
 - [Make Smaller/Make Larger height only](#make-smallermake-larger-height-only)
+- [Make Smaller shrink the height of full-height windows](#make-smaller-shrink-the-height-of-full-height-windows)
 - [Disabling window restore when moving windows](#disabling-window-restore-when-moving-windows)
 - [Changing the margin for the snap areas](#changing-the-margin-for-the-snap-areas)
 - [Setting gaps at the screen edges](#setting-gaps-at-the-screen-edges)
@@ -32,9 +35,15 @@ The preferences window is purposefully slim, but there's a lot that can be modif
 - [Disabling gaps when maximizing](#disabling-gaps-when-maximizing)
 - [Enabling snap areas for sixths](#enabling-snap-areas-for-sixths)
 - [Move cursor with window](#move-cursor-with-window)
+- [Control Enhanced UI handling](#control-enhanced-ui-handling)
 - [Prevent a window that is quickly dragged above the menu bar from going into Mission Control](#prevent-a-window-that-is-quickly-dragged-above-the-menu-bar-from-going-into-mission-control)
 - [Change the behavior of double-click window title bar](#change-the-behavior-of-double-click-window-title-bar)
 - [Change the order of displays to order by x coordinate](#change-the-order-of-displays-to-order-by-x-coordinate-for-next-and-prev-displays-commands)
+- [Keep window size when moving a maximized window to another display](#keep-window-size-when-moving-a-maximized-window-to-another-display)
+- [Repeat the last Rectangle action when moving to another display](#repeat-the-last-rectangle-action-when-moving-to-another-display)
+- [Offset cycling position when overlapping another window](#offset-cycling-position-when-overlapping-another-window)
+- [Move windows that can't fill the snap area to the edge](#move-windows-that-cant-fill-the-snap-area-to-the-edge)
+- [Apps using native resize during window animations](#apps-using-native-resize-during-window-animations)
 
 ## Keyboard Shortcuts
 
@@ -81,6 +90,20 @@ Note that if subsequent execution mode is set to cycle displays when this is ena
 
 ```bash
 defaults write com.knollsoft.Rectangle resizeOnDirectionalMove -bool true
+```
+
+## Make the half actions tile like Windows or KDE
+
+By default, Left Half, Right Half, Top Half and Bottom Half always give the window the full height or width of the screen. Enable this to have each of them only change its own axis and keep the other one, like the Win + arrow keys on Windows or keyboard tiling on KDE:
+
+- Left Half followed by Top Half puts the window in the top left quarter (so does Top Half followed by Left Half).
+- Inside a quarter, the action for the opposite edge expands the window along that axis: Bottom Half takes a top left quarter back to Left Half, Right Half takes it to Top Half.
+- Inside a quarter, the action for the edge the window is docked to cycles the window through the cycle sizes along that axis and keeps the other one: Left Half takes a top left quarter to two thirds wide, then one third wide, while Top Half does the same to its height. This follows the setting for repeated commands; when it does not resize, the window stays as it is.
+- The same goes for halves: Right Half followed by Left Half fills the screen.
+- Windows that are not tiled, and halves that get their own action again, behave as usual (repeated executions still cycle sizes or move across displays, depending on the setting for repeated commands).
+
+```bash
+defaults write com.knollsoft.Rectangle halvesPreserveOtherAxisSize -bool true
 ```
 
 ## Adjust macOS Ventura Stage Manager size
@@ -133,6 +156,16 @@ defaults write com.knollsoft.Rectangle almostMaximizeHeight -float <VALUE_BETWEE
 
 ```bash
 defaults write com.knollsoft.Rectangle almostMaximizeWidth -float <VALUE_BETWEEN_0_&_1>
+```
+
+## Repeated Maximize restores the previous size and position
+
+By default, executing "Maximize" or "Almost Maximize" on a window that is already in that state does nothing. With this enabled, executing the same action again on a window that Rectangle has just maximized (or almost maximized) moves the window back to the size and position it had right before, so the shortcut toggles between the two. A window that was moved or resized by other means in between is maximized as usual.
+
+This can also be toggled with the "Repeated Maximize restores the previous size and position" checkbox at the bottom of the "Extras" popover in the General tab of the Settings window.
+
+```bash
+defaults write com.knollsoft.Rectangle repeatedMaximizeRestoresPrevious -bool true
 ```
 
 ## Add an extra centering command with custom size
@@ -273,13 +306,13 @@ defaults write com.knollsoft.Rectangle cascadeActiveApp -dict-add keyCode -float
 
 ## Modify the "footprint" displayed for drag to snap area
 
-Adjust the alpha (transparency). Default is 0.3.
+Adjust the alpha (transparency). Default is 0.3, or 0 for the blurred preview, where it controls tint opacity.
 
 ```bash
 defaults write com.knollsoft.Rectangle footprintAlpha -float <VALUE_BETWEEN_0_&_1>
 ```
 
-Change the border width. Default is 2 (used to be 1).
+Change the border width. Default is 2 (used to be 1), or 1 for the blurred preview. A custom value overrides either default.
 
 ```bash
 defaults write com.knollsoft.Rectangle footprintBorderWidth -float <NUM_PIXELS>
@@ -291,13 +324,13 @@ Disable the fade.
 defaults write com.knollsoft.Rectangle footprintFade -int 2
 ```
 
-Change the color.
+Change the color. With blur enabled, this sets the tint color. Delete `footprintColor` to restore the automatic light/dark tint color.
 
 ```bash
 defaults write com.knollsoft.Rectangle footprintColor -string "{\"red\":0,\"blue\":0.5,\"green\":0.5}"
 ```
 
-Change the animation duration. The value is a multiplier. Default is 0 (no animation).
+Change the animation duration. The value is a multiplier. Default is 0 (no movement animation).
 
 ```bash
 defaults write com.knollsoft.Rectangle footprintAnimationDurationMultiplier -float <MULTIPLIER>
@@ -314,6 +347,8 @@ defaults write com.knollsoft.Rectangle centeredDirectionalMove -int 2
 ## Make Smaller limits
 
 By default, "Make Smaller" will decrease the window until it reaches 25% of the screen (width & height).
+
+Set either value to `0` to disable Rectangle's screen-relative limit for that dimension and rely on the application's native minimum size.
 
 ```bash
 defaults write com.knollsoft.Rectangle minimumWindowWidth -float <VALUE_BETWEEN_0_&_1>
@@ -361,10 +396,26 @@ defaults write com.knollsoft.Rectangle largerHeight -dict-add keyCode -float 30 
 defaults write com.knollsoft.Rectangle smallerHeight -dict-add keyCode -float 33 modifierFlags -float 917504
 ```
 
+## Make Smaller shrink the height of full-height windows
+
+By default, "Make Smaller" keeps the height of a window that spans the full height of the screen (for example after "Half" or "Maximize Height") and only shrinks its width. Enable this to shrink the height as well:
+
+```bash
+defaults write com.knollsoft.Rectangle smallerShrinksMaximizedHeight -bool true
+```
+
 ## Disabling window restore when moving windows
 
 ```bash
 defaults write com.knollsoft.Rectangle unsnapRestore -int 2
+```
+
+## Disabling window restore when moving windows sized by "Make Smaller" or "Make Larger"
+
+Keeps the window restore behavior above for everything else:
+
+```bash
+defaults write com.knollsoft.Rectangle unsnapRestoreFromSizeChange -int 2
 ```
 
 ## Changing the margin for the snap areas
@@ -466,6 +517,27 @@ There's an option in the UI for moving the cursor with the window when going acr
 defaults write com.knollsoft.Rectangle moveCursor -int 1
 ```
 
+## Control Enhanced UI handling
+
+Some apps enable the macOS `AXEnhancedUserInterface` accessibility mode. Rectangle disables this mode while moving or resizing a window because its animated window updates can otherwise produce incorrect frames. Chromium browsers can also enable expensive web accessibility processing when the mode is restored.
+
+Rectangle uses automatic handling by default: it restores Enhanced UI for other apps, but leaves it disabled after Rectangle window actions, when known Chromium browser families activate, and when one is already frontmost as Rectangle starts. VoiceOver and Switch Control keep the prior restore behavior. The behavior can be overridden with:
+
+```bash
+defaults write com.knollsoft.Rectangle enhancedUI -int <MODE>
+```
+
+`enhancedUI` accepts the following values:
+
+| Mode | Behavior |
+|------|----------|
+| `1` | Always restore Enhanced UI after a Rectangle window action if it was enabled beforehand. Use this when assistive software depends on the mode. |
+| `2` | Disable Enhanced UI when encountered and do not restore it. |
+| `3` | Behave like mode 2 and also disable Enhanced UI whenever the frontmost app changes. |
+| `4` | Automatic handling (default). |
+
+Automatic handling can still interfere with third-party assistive software that enables Enhanced UI inside a Chromium browser; use mode 1 when that software depends on the mode. Modes 2 and 3 apply the same risk to every app. Legacy mode `0` is treated as mode 1.
+
 ## Prevent a window that is quickly dragged above the menu bar from going into Mission Control
 
 Important: This can cause issues with dragging and dropping in certain apps like Adobe Illustrator, and can affect text selection in a select few apps as well. 
@@ -516,4 +588,91 @@ By default, display order is left-to-right, line-by-line. You can change this to
 
 ```bash
 defaults write com.knollsoft.Rectangle screensOrderedByX -int 1
+```
+
+## Keep window size when moving a maximized window to another display
+
+By default, moving a maximized window to the next or previous display re-maximizes it to fill the destination display. Disable this to keep the window's size and center it on the destination display instead (so a window maximized on a smaller display won't grow to fill a larger one). This can also be toggled from Settings via the "Maximize window when moved to another display" checkbox.
+
+```bash
+defaults write com.knollsoft.Rectangle autoMaximize -int 2
+```
+
+To restore the default behavior:
+
+```bash
+defaults write com.knollsoft.Rectangle autoMaximize -int 0
+```
+
+## Repeat the last Rectangle action when moving to another display
+
+By default, moving a window to the next, previous, or a specific display keeps the spot it had on the source display (Settings > Behavior > "Keep window position when moving across displays"). Enable this to replay the last Rectangle action on the destination display instead, when there is one: a window that was snapped to the left half of the source display is snapped to the left half of the destination display, so it is resized to match the new display rather than keeping its size. With "Keep window position" turned off, a window with no action to replay is mapped proportionally from the source display to the destination display instead of being centered. This is off by default.
+
+```bash
+defaults write com.knollsoft.Rectangle attemptMatchOnNextPrevDisplay -int 1
+```
+
+To disable it again:
+
+```bash
+defaults write com.knollsoft.Rectangle attemptMatchOnNextPrevDisplay -int 2
+```
+
+## Offset cycling position when overlapping another window
+
+When cycling through grid positions (sixths, eighths, ninths, twelfths, sixteenths, or quarters with quadrant cycling mode), the target position may land exactly on top of another window, hiding it completely. Enable this to apply a small offset when an overlap is detected, so you can see there's a window underneath.
+
+```bash
+defaults write com.knollsoft.Rectangle cyclingOverlapOffset -bool true
+```
+
+The default offset is 11pt. To customize the offset size:
+
+```bash
+defaults write com.knollsoft.Rectangle cyclingOverlapOffsetSize -float 16
+```
+
+By default, only one cascade layer is shown (the original window plus one offset). To allow more layers:
+
+```bash
+defaults write com.knollsoft.Rectangle cyclingOverlapMaxCascade -int 3
+```
+
+## Show a badge with the stacked windows when hovering over a grid corner
+
+When multiple windows are stacked at the same grid position, resting the cursor on that position's top-left corner shows a small badge with the stack count and a list of the window names. Clicking a name brings that window forward.
+
+```bash
+defaults write com.knollsoft.Rectangle stackBadge -bool true
+```
+
+## Move windows that can't fill the snap area to the edge
+
+Some windows can't be resized to fill a snap area — either because they're a fixed size, or because they're resizable but have a maximum size or a fixed aspect ratio (FaceTime is a common example). By default such a window aligns to the snap area's screen edge(s): a right-half snap anchors flush right, a corner snap anchors into the corner, and the window stays centered on any axis it can't fill. To choose a different behavior:
+
+```bash
+defaults write com.knollsoft.Rectangle moveFixedSizeToEdge -int 1  # align edges and corners (default)
+defaults write com.knollsoft.Rectangle moveFixedSizeToEdge -int 2  # align corners only, center halves/sides
+defaults write com.knollsoft.Rectangle moveFixedSizeToEdge -int 3  # center within the snap area
+defaults write com.knollsoft.Rectangle moveFixedSizeToEdge -int 4  # keep windows at the snap area's top-left
+```
+
+Mode `4` keeps constrained windows at the snap area's top-left. For video windows such as IINA, this keeps left/right snaps top-aligned as you cycle through sizes.
+
+Narrower windows stay at the snap area's left edge, even for right-side snaps. Gaps still apply, and Rectangle may shift the window to keep it on screen.
+
+Restart Rectangle after changing this preference. To restore the default:
+
+```bash
+defaults delete com.knollsoft.Rectangle moveFixedSizeToEdge
+```
+
+## Apps using native resize during window animations
+
+Certain applications (such as IINA) enforce aspect ratios or custom constraints asynchronously when resized. During direct window animations, continuous intermediate frame adjustments can fight with the application's internal aspect-ratio corrections. For apps in this list, Rectangle resizes the window once natively, allows the animation duration for the app to asynchronously settle its aspect ratio, and then aligns the final achieved size using a position-only write.
+
+The default list contains IINA (`com.colliderli.iina`). You can configure this list of bundle IDs:
+
+```bash
+defaults write com.knollsoft.Rectangle directAnimationNativeResizeApps -string "[\"com.colliderli.iina\", \"org.videolan.vlc\"]"
 ```

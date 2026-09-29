@@ -1,16 +1,12 @@
-//
-//  NotificationExtension.swift
-//  Rectangle
-//
-//  Created by Ryan Hanson on 12/23/20.
-//  Copyright © 2020 Ryan Hanson. All rights reserved.
-//
+/// NotificationExtension.swift
 
 import Cocoa
 
 extension Notification.Name {
   
     static let configImported = Notification.Name("configImported")
+    static let windowAnimationPreferencesChanged = Notification.Name("windowAnimationPreferencesChanged")
+    static let windowActionCompleted = Notification.Name("windowActionCompleted")
     static let windowSnapping = Notification.Name("windowSnapping")
     static let frontAppChanged = Notification.Name("frontAppChanged")
     static let allowAnyShortcut = Notification.Name("allowAnyShortcutToggle")
@@ -20,9 +16,13 @@ extension Notification.Name {
     static let missionControlDragging = Notification.Name("missionControlDragging")
     static let menuBarIconHidden = Notification.Name("menuBarIconHidden")
     static let windowTitleBar = Notification.Name("windowTitleBar")
+    static let greenButtonOverride = Notification.Name("greenButtonOverride")
     static let defaultSnapAreas = Notification.Name("defaultSnapAreas")
     static let updateAvailability = Notification.Name("updateAvailability")
     static let showAdditionalSizesInMenuChanged = Notification.Name("showAdditionalSizesInMenuChanged")
+    static let shortcutRecording = Notification.Name("shortcutRecording")
+    static let stackBadgeChanged = Notification.Name("stackBadgeChanged")
+    static let snapAreaSettingsNeedsResize = Notification.Name("snapAreaSettingsNeedsResize")
 
     func post(
         center: NotificationCenter = NotificationCenter.default,
@@ -48,4 +48,3 @@ extension Notification.Name {
     }
 
 }
-

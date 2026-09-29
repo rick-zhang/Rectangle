@@ -1,42 +1,35 @@
-//
-//  StandardWindowMover.swift
-//  Rectangle, Ported from Spectacle
-//
-//  Created by Ryan Hanson on 6/13/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// StandardWindowMover.swift
 
 import Foundation
 
 class StandardWindowMover: WindowMover {
-    func moveWindowRect(_ windowRect: CGRect, frameOfScreen: CGRect, visibleFrameOfScreen: CGRect, frontmostWindowElement: AccessibilityElement?, action: WindowAction?) {
-        let previousWindowRect: CGRect? = frontmostWindowElement?.frame
-        if previousWindowRect?.isNull == true {
-            return
-        }
-        let targetNormalizedRect = windowRect.screenFlipped
-        frontmostWindowElement?.setFrame(windowRect) { adjustedSize in
+    func moveWindow(toRect rect: CGRect, resultParameters: ResultParameters) {
+        let windowElement = resultParameters.windowElement
+        if windowElement.frame.isNull { return }
+        windowElement.setFrame(rect.screenFlipped,
+                               adjustSizeFirst: shouldAdjustSizeFirst(resultParameters.action)) { adjustedSize in
             let adjustedOrigin = WindowFrameApplyStrategy.adjustedOriginAfterInitialSize(
-                targetWindowRect: windowRect,
-                targetNormalizedRect: targetNormalizedRect,
-                sourceScreenFrame: frameOfScreen,
-                destinationVisibleFrame: visibleFrameOfScreen,
+                targetWindowRect: rect.screenFlipped,
+                targetNormalizedRect: rect,
+                sourceScreenFrame: resultParameters.usableScreens.frameOfCurrentScreen,
+                destinationVisibleFrame: resultParameters.visibleFrameOfScreen,
                 adjustedSize: adjustedSize)
-
             if let adjustedOrigin {
-                Logger.diagnostic([
-                    "apply.positionAfterInitialSize",
-                    "action: \(action?.name ?? "nil")",
-                    "targetRect: \(windowRect.debugDescription)",
-                    "targetNormalizedRect: \(targetNormalizedRect.debugDescription)",
-                    "adjustedSize: \(adjustedSize.debugDescription)",
-                    "adjustedOrigin: \(adjustedOrigin.debugDescription)",
-                    "sourceScreenFrame: \(frameOfScreen.debugDescription)",
-                    "destinationVisibleFrame: \(visibleFrameOfScreen.debugDescription)"
-                ].joined(separator: ", "))
+                Logger.diagnostic("跨屏初次调整尺寸后修正位置：\(adjustedOrigin)，实际尺寸：\(adjustedSize)")
             }
-
             return adjustedOrigin
+        }
+    }
+    
+    private func shouldAdjustSizeFirst(_ action: WindowAction) -> Bool {
+        switch (action, Defaults.cornerCycleExpansionAxis.value) {
+        case (.topRight, .horizontal),
+             (.bottomRight, .horizontal),
+             (.bottomLeft, .vertical),
+             (.bottomRight, .vertical):
+            return false
+        default:
+            return true
         }
     }
 }

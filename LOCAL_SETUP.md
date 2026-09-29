@@ -4,8 +4,8 @@
 
 ## 环境要求
 
-- macOS 10.15 或更高版本。
-- Xcode，建议使用当前稳定版本。
+- macOS 14 或更高版本。
+- Xcode 27（与当前上游 CI 保持一致）。
 - Git，用于获取源码。
 - 可访问 GitHub，Xcode 会通过 Swift Package Manager 自动解析 Sparkle 和 MASShortcut 依赖。
 

@@ -1,10 +1,4 @@
-//
-//  LogViewer.swift
-//  Multitouch
-//
-//  Created by Ryan Hanson on 8/6/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// LogViewer.swift
 
 import Cocoa
 
@@ -95,12 +89,7 @@ class LogWindowController: NSWindowController, NSWindowDelegate {
     }
     
     func append(_ string: String) {
-        var datestamp: String
-        if #available(OSX 10.12, *) {
-            datestamp = ISO8601DateFormatter.string(from: Date(), timeZone: TimeZone.current, formatOptions: .withInternetDateTime)
-        } else {
-            datestamp = String(NSDate().timeIntervalSince1970)
-        }
+        let datestamp = String(NSDate().timeIntervalSince1970)
         (contentViewController as? LogViewController)?.append(datestamp + ": " + string + "\n")
     }
     

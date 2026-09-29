@@ -1,10 +1,4 @@
-//
-//  ApplicationToggle.swift
-//  Rectangle
-//
-//  Created by Ryan Hanson on 6/18/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// ApplicationToggle.swift
 
 import Cocoa
 
@@ -21,36 +15,18 @@ class ApplicationToggle: NSObject {
         self.shortcutManager = shortcutManager
         super.init()
         registerFrontAppChangeNote()
-        if let disabledApps = getDisabledApps() {
+        if let disabledApps = Defaults.disabledApps.typedValue {
             self.disabledApps = disabledApps
         }
+        applyEnhancedUIActivationPolicy(to: NSWorkspace.shared.frontmostApplication)
     }
     
     public func reloadFromDefaults() {
-        if let disabledApps = getDisabledApps() {
+        if let disabledApps = Defaults.disabledApps.typedValue {
             self.disabledApps = disabledApps
         } else {
             disabledApps.removeAll()
         }
-    }
-    
-    private func saveDisabledApps() {
-        let encoder = JSONEncoder()
-        if let jsonDisabledApps = try? encoder.encode(disabledApps) {
-            if let jsonString = String(data: jsonDisabledApps, encoding: .utf8) {
-                Defaults.disabledApps.value = jsonString
-            }
-        }
-    }
-    
-    private func getDisabledApps() ->  Set<String>? {
-        guard let jsonDisabledAppsString = Defaults.disabledApps.value else { return nil }
-        
-        let decoder = JSONDecoder()
-        guard let jsonDisabledApps = jsonDisabledAppsString.data(using: .utf8) else { return nil }
-        guard let disabledApps = try? decoder.decode(Set<String>.self, from: jsonDisabledApps) else { return nil }
-        
-        return disabledApps
     }
 
     private func disableShortcuts() {
@@ -76,7 +52,7 @@ class ApplicationToggle: NSObject {
     public func disableApp(appBundleId: String? = frontAppId) {
         if let appBundleId {
             disabledApps.insert(appBundleId)
-            saveDisabledApps()
+            Defaults.disabledApps.typedValue = disabledApps
             disableShortcuts()
         }
     }
@@ -84,7 +60,7 @@ class ApplicationToggle: NSObject {
     public func enableApp(appBundleId: String? = frontAppId) {
         if let appBundleId {
             disabledApps.remove(appBundleId)
-            saveDisabledApps()
+            Defaults.disabledApps.typedValue = disabledApps
             enableShortcuts()
         }
     }
@@ -95,6 +71,25 @@ class ApplicationToggle: NSObject {
     
     private func registerFrontAppChangeNote() {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(self.receiveFrontAppChangeNote(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+    }
+
+    private func applyEnhancedUIActivationPolicy(to application: NSRunningApplication?) {
+        guard let application else { return }
+        let enhancedUI = Defaults.enhancedUI.value
+        let bundleIdentifier = application.bundleIdentifier
+        let builtInAssistiveTechnologyEnabled = NSWorkspace.shared.isVoiceOverEnabled
+            || NSWorkspace.shared.isSwitchControlEnabled
+        guard enhancedUI.disablesEnhancedUIOnApplicationActivation(
+            bundleIdentifier: bundleIdentifier,
+            builtInAssistiveTechnologyEnabled: builtInAssistiveTechnologyEnabled
+        ) else { return }
+
+        let activatedApplicationPid = application.processIdentifier
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(50)) {
+            guard let activatedApplication = NSRunningApplication(processIdentifier: activatedApplicationPid),
+                  activatedApplication.bundleIdentifier == bundleIdentifier else { return }
+            AccessibilityElement(activatedApplicationPid).enhancedUserInterface = false
+        }
     }
     
     @objc func receiveFrontAppChangeNote(_ notification: Notification) {
@@ -111,11 +106,7 @@ class ApplicationToggle: NSObject {
             } else {
                 enableShortcuts()
             }
-            if Defaults.enhancedUI.value == .frontmostDisable {
-                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(50)) {
-                    AccessibilityElement.getFrontApplicationElement()?.enhancedUserInterface = false
-                }
-            }
+            applyEnhancedUIActivationPolicy(to: application)
         }
     }
 }

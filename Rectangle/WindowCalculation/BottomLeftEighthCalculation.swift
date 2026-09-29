@@ -1,10 +1,4 @@
-//
-//  BottomLeftEighthCalculation.swift
-//  Rectangle
-//
-//  Created by Johannes Trussell Rasch on 2022-02-18.
-//  Copyright © 2022 Ryan Hanson. All rights reserved.
-//
+/// BottomLeftEighthCalculation.swift
 
 import Foundation
 
@@ -44,7 +38,7 @@ class BottomLeftEighthCalculation: WindowCalculation, OrientationAware, EighthsR
         var rect = visibleFrameOfScreen
         rect.size.width = floor(visibleFrameOfScreen.width / 2.0)
         rect.size.height = floor(visibleFrameOfScreen.height / 4.0)
-        rect.origin.y = floor(visibleFrameOfScreen.maxY - (visibleFrameOfScreen.height * 0.75))
+        rect.origin.y = visibleFrameOfScreen.maxY - (rect.height * 3.0)
         rect.origin.x = visibleFrameOfScreen.minX
         return RectResult(rect, subAction: .bottomLeftEighth)
     }

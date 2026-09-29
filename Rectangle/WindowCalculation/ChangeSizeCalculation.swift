@@ -1,10 +1,4 @@
-//
-//  ChangeSizeCalculation.swift
-//  Rectangle, Ported from Spectacle
-//
-//  Created by Ryan Hanson on 6/14/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// ChangeSizeCalculation.swift
 
 import Foundation
 
@@ -13,6 +7,7 @@ class ChangeSizeCalculation: WindowCalculation, ChangeWindowDimensionCalculation
     let screenEdgeGapSize: CGFloat
     let sizeOffsetAbs: CGFloat
     let curtainChangeSize = Defaults.curtainChangeSize.enabled != false
+    let smallerShrinksMaximizedHeight = Defaults.smallerShrinksMaximizedHeight.enabled
 
     var widthOffsetAbs: CGFloat {
         CGFloat(Defaults.widthStepSize.value)
@@ -74,7 +69,15 @@ class ChangeSizeCalculation: WindowCalculation, ChangeWindowDimensionCalculation
             resizedWindowRect.size.height = resizedWindowRect.height + sizeOffset
             resizedWindowRect.origin.y = resizedWindowRect.minY - floor(sizeOffset / 2.0)
 
-            if curtainChangeSize, params.action != .smallerHeight {
+            // The height-only Smaller command skips the top/bottom edge curtain so it can
+            // shrink even a full-height window. smallerShrinksMaximizedHeight extends that
+            // exemption to the combined Smaller command, which otherwise keeps the height
+            // of a window pinned to the top and bottom screen edges.
+            let heightCurtainActions: [WindowAction] = smallerShrinksMaximizedHeight
+                ? [.smaller, .smallerHeight]
+                : [.smallerHeight]
+
+            if curtainChangeSize, !heightCurtainActions.contains(params.action) {
                 resizedWindowRect = againstTopAndBottomScreenEdges(
                     originalWindowRect: window.rect,
                     resizedWindowRect: resizedWindowRect,

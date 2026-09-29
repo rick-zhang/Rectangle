@@ -1,9 +1,4 @@
-//
-//  StageUtil.swift
-//  Rectangle
-//
-//  Copyright © 2022 Ryan Hanson. All rights reserved.
-//
+/// StageUtil.swift
 
 import Foundation
 
@@ -39,10 +34,7 @@ class StageUtil {
         case "right":
             return .left
         default: // bottom
-            var isRTL = false
-            if #available(macOS 13, *), Locale.current.language.characterDirection == .rightToLeft {
-                isRTL = true
-            }
+            let isRTL = Locale.current.language.characterDirection == .rightToLeft
             return isRTL ? .right : .left
         }
     }

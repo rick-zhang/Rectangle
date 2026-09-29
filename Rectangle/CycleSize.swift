@@ -1,10 +1,4 @@
-//
-//  CycleSize.swift
-//  Rectangle
-//
-//  Created by Eskil Gjerde Sviggum on 01/08/2024.
-//  Copyright © 2024 Ryan Hanson. All rights reserved.
-//
+/// CycleSize.swift
 
 import Foundation
 
@@ -44,22 +38,47 @@ enum CycleSize: Int, CaseIterable {
         
         return [firstSize] + greaterThanFistSizes + lessThanFistSizes
     }()
+
+    /// The sizes repeated executions cycle through, in cycling order.
+    static func sortedSelectedSizes() -> [CycleSize] {
+        let useDefaultPositions = !Defaults.cycleSizesIsChanged.enabled
+        let positions = useDefaultPositions ? defaultSizes : Defaults.selectedCycleSizes.value
+
+        return sortedSizes.filter { positions.contains($0) }
+    }
+}
+
+enum CornerCycleExpansionAxis: Int, CaseIterable {
+    case horizontal = 0
+    case vertical = 1
+    
+    var title: String {
+        switch self {
+        case .horizontal: return String(localized: "Horizontally")
+        case .vertical: return String(localized: "Vertically")
+        }
+    }
 }
 
 extension CycleSize {
+    static let matchingTolerance: Float = 0.001
+    
+    static func matching(percentValue: Float) -> CycleSize? {
+        sortedSizes.first { $0.matches(percentValue: percentValue) }
+    }
     
     var title: String {
         switch self {
         case .twoThirds:
-            "⅔"
+            String(localized: "⅔")
         case .oneHalf:
-            "½"
+            String(localized: "½")
         case .oneThird:
-            "⅓"
+            String(localized: "⅓")
         case .oneQuarter:
-            "¼"
+            String(localized: "¼")
         case .threeQuarters:
-            "¾"
+            String(localized: "¾")
         }
     }
     
@@ -78,12 +97,12 @@ extension CycleSize {
         }
     }
     
-    var isAlwaysEnabled: Bool {
-        if self == .firstSize {
-            return true
-        }
-        
-        return false
+    var percentValue: Float {
+        fraction * 100
+    }
+    
+    func matches(percentValue: Float, tolerance: Float = Self.matchingTolerance) -> Bool {
+        abs(self.percentValue - percentValue) <= tolerance
     }
     
 }

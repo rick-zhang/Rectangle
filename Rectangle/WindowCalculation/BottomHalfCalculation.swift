@@ -1,10 +1,4 @@
-//
-//  BottomHalfCalculation.swift
-//  Rectangle, Ported from Spectacle
-//
-//  Created by Ryan Hanson on 6/14/19.
-//  Copyright © 2019 Ryan Hanson. All rights reserved.
-//
+/// BottomHalfCalculation.swift
 
 import Foundation
 
@@ -12,23 +6,29 @@ class BottomHalfCalculation: WindowCalculation, RepeatedExecutionsInThirdsCalcul
 
     override func calculateRect(_ params: RectCalculationParameters) -> RectResult {
 
+        if Defaults.halvesPreserveOtherAxisSize.enabled, let tiledRect = HalvesPreserveOtherAxisSize.rect(for: params) {
+            return tiledRect
+        }
+
         if params.lastAction == nil || !Defaults.subsequentExecutionMode.resizes {
             return calculateFirstRect(params)
         }
         
-        return calculateRepeatedRect(params)
+        return calculateRepeatedSideRect(params)
     }
     
     func calculateFirstRect(_ params: RectCalculationParameters) -> RectResult {
-        return calculateFractionalRect(params, fraction: 1.0 - Defaults.verticalSplitRatio.value / 100.0)
+        return RectResult(HalfSplitFrameCalculation.verticalRect(in: params.visibleFrameOfScreen,
+                                                                 side: .trailing,
+                                                                 fraction: 1.0 - ActiveSideSplitRatios.shared.verticalRatio(for: params.visibleFrameOfScreen)))
     }
 
     func calculateFractionalRect(_ params: RectCalculationParameters, fraction: Float) -> RectResult {
-        let visibleFrameOfScreen = params.visibleFrameOfScreen
+        return RectResult(HalfSplitFrameCalculation.verticalRect(in: params.visibleFrameOfScreen, side: .trailing, fraction: fraction))
+    }
 
-        var rect = visibleFrameOfScreen
-        rect.size.height = floor(visibleFrameOfScreen.height * CGFloat(fraction))
-        return RectResult(rect)
+    func calculateRepeatedRect(_ params: RectCalculationParameters) -> RectResult {
+        calculateRepeatedSideRect(params)
     }
     
 }

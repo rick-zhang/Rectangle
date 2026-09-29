@@ -1,16 +1,10 @@
-//
-//  WindowActionCategory.swift
-//  Rectangle
-//
-//  Created by Ryan Hanson on 10/3/20.
-//  Copyright © 2020 Ryan Hanson. All rights reserved.
-//
+/// WindowActionCategory.swift
 
 import Foundation
 
 enum WindowActionCategory {
 
-    case halves, corners, thirds, max, size, display, move, other, sixths, fourths, eighths, ninths, twelfths, sixteenths
+    case halves, corners, thirds, max, size, display, move, other, sixths, fourths, eighths, ninths, twelfths, sixteenths, tiling
 
     var menuOrder: Int {
         switch self {
@@ -23,6 +17,7 @@ enum WindowActionCategory {
         case .ninths: return 6
         case .twelfths: return 7
         case .sixteenths: return 8
+        case .tiling: return 9
         default: return 99
         }
     }
@@ -30,7 +25,7 @@ enum WindowActionCategory {
     var displayName: String {
         switch self {
         case .halves:
-            return NSLocalizedString("Halves", tableName: "Main", value: "", comment: "")
+            return NSLocalizedString("Sides", tableName: "Main", value: "", comment: "")
         case .corners:
             return NSLocalizedString("Corners", tableName: "Main", value: "", comment: "")
         case .thirds:
@@ -57,6 +52,8 @@ enum WindowActionCategory {
             return NSLocalizedString("Twelfths", tableName: "Main", value: "Twelfths", comment: "")
         case .sixteenths:
             return NSLocalizedString("Sixteenths", tableName: "Main", value: "Sixteenths", comment: "")
+        case .tiling:
+            return NSLocalizedString("Tiling", tableName: "Main", value: "Tiling", comment: "")
         }
     }
 }
